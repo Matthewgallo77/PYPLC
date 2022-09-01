@@ -1,31 +1,23 @@
-from genericpath import getsize
-from lib2to3.pgen2.token import NAME
-from numbers import Real
-from tkinter.tix import COLUMN
-from tracemalloc import start
-from turtle import st
-from unicodedata import name
-from uuid import NAMESPACE_DNS
-from xmlrpc.client import Boolean
+import openpyxl
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 import snap7 # IMPORT SNAP7 LIBRARY
-from snap7.util import *
-
 import re
-import struct # TO CONVERT BYTE ARRAY TO FLOATING POINT
+import xlwings as xw
+from snap7.util import *
 from sys import getsizeof # IMPORT TO GET SIZE OF DATA
 from snap7.common import check_error, ipv4, load_library
 from snap7.types import S7WLBit, S7WLByte, S7WLInt, S7WLReal
+from win32com.client import Dispatch # pip install pywin32
 
-# DOCUMENTATION: https://python-snap7.readthedocs.io/en/1.0/client.html#snap7.client.Client.as_download   
+# DOCUMENTATION: https://python-snap7.readthedocs.io/en/1.0/client.html#snap7.client.Client.as_download 
 
-def tagInfo(fileName):
-    excelWorkbook = load_workbook(fileName)
-    uiSheet = excelWorkbook.active
+
+def getTagInfo():
+    
+
     lastRow = str(len(list(uiSheet.rows))) # GETS THE LAST NON EMPTY ROW
-
     NAMES, DATATYPES, ADDRESSES = uiSheet['A2':'A'+lastRow], uiSheet['C2':'C'+lastRow], uiSheet['D2':'D'+lastRow] # ACCESS NECESSARY COLUMNS
-
     nameList, datatypeList, addressList = [], [], [] # INITIALIZE LISTS
 
     nameList, datatypeList, addressList  = dataList(NAMES, nameList), dataList(DATATYPES, datatypeList), dataList(ADDRESSES, addressList)
@@ -57,19 +49,17 @@ def ReadMerker(PLC, byte, bit, datatype):
         return 'ERROR: Data type has not been anticipated'
 
 def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
-
-    for key, value in address_dataType.items():
-        valueList = []
-        tagValue = None
+    valueList = []
+    tagValue = None
+    for key, value in address_dataType.items():     
         if '.' in key:
             tagValue = ReadMerker(PLC1, int(key.split('.')[0]), int(key.split('.')[1]), value)
             valueList.append(tagValue)
-        else:
-            tagvalue = ReadMerker(PLC1, int(key), 0, value)
+        else:  
+            tagValue = ReadMerker(PLC1, int(key), 0, value)
             valueList.append(tagValue)
-
-        print(valueList)
-    
+                
+    return valueList
 
 # # def WriteMerker(PLC, byte, bit, datatype):
 # #     # GET VALUE FROM INPUT IN EXCEL VALUE CELL
@@ -83,18 +73,36 @@ def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
 #     elif datatype == snap7.types.S7WLWord:
 #         return get_real(byteArray, byte, value)
 #     else:
-#         return 'ERROR: Data type has not been anticipfated'
-# #     
+#         return 'ERROR: Data type has not been anticipated'
+# # 
 
+def write_toExcel(PLC):
+    
+    wb = xw.Book('PLCTags.xlsx')
+    sheet = xw.sheets[0]
+    rowCount=2
+    lastRow = len(list(uiSheet.rows))
+
+    while PLC.get_connected():
+        rowCount = 2 # RESET
+        while rowCount<=lastRow: 
+            valueList = ReadTags(PLC1)
+            for value in valueList:
+                sheet.range('K'+str(rowCount)).value = value
+                rowCount+=1
+    
 if __name__ == "__main__":
-    address_dataType = tagInfo('PLCTags.xlsx')
+
+    excelWorkbook = load_workbook('PLCTags.xlsx')
+    uiSheet = excelWorkbook.active
+    address_dataType = getTagInfo()
+    
     PLC1 = snap7.client.Client()
     try:
         PLC1.connect('192.168.0.1',0,1) # IP, RACK #, SLOT #
         print("CONNECTION STATUS: \n" + "PLC1: " + str(PLC1.get_connected())) # DISPLAYS IF CONNECTION TO PLC IS VALID
     except:
         print("CONNECTION STATUS: \n" "PLC1: " + str(PLC1.get_connected()))
-    x=ReadTags(PLC1)
-    print(x)
+    write_toExcel(PLC1)
 
     
