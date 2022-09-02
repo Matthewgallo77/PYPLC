@@ -1,3 +1,4 @@
+
 import openpyxl
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
@@ -15,19 +16,18 @@ from win32com.client import Dispatch # pip install pywin32
 
 def getTagInfo():
     
-
     lastRow = str(len(list(uiSheet.rows))) # GETS THE LAST NON EMPTY ROW
     NAMES, DATATYPES, ADDRESSES = uiSheet['A2':'A'+lastRow], uiSheet['C2':'C'+lastRow], uiSheet['D2':'D'+lastRow] # ACCESS NECESSARY COLUMNS
     nameList, datatypeList, addressList = [], [], [] # INITIALIZE LISTS
 
     nameList, datatypeList, addressList  = dataList(NAMES, nameList), dataList(DATATYPES, datatypeList), dataList(ADDRESSES, addressList)
 
-    datatypeList = [snap7.types.S7WLBit if dataType =='Bool' else snap7.types.S7WLInt if dataType == 'Int' else snap7.types.S7WLReal for dataType in datatypeList] # 1 is Bool, 5 is Int, 8 is Real
+    datatypeList = [snap7.types.S7WLBit if dataType =='Bool' else snap7.types.S7WLWord if dataType == 'Word' else snap7.types.S7WLInt if dataType == 'Int' else snap7.types.S7WLReal for dataType in datatypeList] # 1 is Bool, 5 is Int, 8 is Real
 
-    for value in addressList:
-        addressList=list(map(lambda x: x.replace(value,re.sub("[^\d\.]", "", value)), addressList))
+    # for value in addressList:
+        # addressList=list(map(lambda x: x.replace(value,re.sub("[^\d\.]", "", value)), addressList))
     address_dataType = {addressList[i]: datatypeList[i] for i in range(len(addressList))} # CONTAINS {ADDRESS: DATATYPE}
-
+    # print(address_dataType)
     return address_dataType
 
 def dataList(columnInput, infoList):
@@ -37,29 +37,49 @@ def dataList(columnInput, infoList):
                 infoList.append(INFO.value)
         return infoList
 
-def ReadMerker(PLC, byte, bit, datatype):
-    byteArray = PLC.read_area(snap7.types.Areas.MK, 0, byte, datatype)
+def ReadArea(PLC, byte, bit, datatype, area): # M, MB, MW, MD
+    byteArray = PLC.read_area(area, byte, bit, datatype)
+    # print(byteArray)
     if datatype == snap7.types.S7WLBit:
         return get_bool(byteArray, byte, bit)
-    elif datatype == snap7.types.S7WLInt:
+    elif datatype == snap7.types.S7WLInt or datatype == snap7.types.S7WLWord:
+        print("i am an int")
         return get_int(byteArray, byte)
     elif datatype == snap7.types.S7WLReal:
         return get_real(byteArray, byte)
     else:
         return 'ERROR: Data type has not been anticipated'
 
+
 def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
     valueList = []
     tagValue = None
-    for key, value in address_dataType.items():     
-        if '.' in key:
-            tagValue = ReadMerker(PLC1, int(key.split('.')[0]), int(key.split('.')[1]), value)
+    addressList = []
+    for key, value in address_dataType.items():
+        
+        if 'I' in key:
+            key = re.sub("[^\d\.]", "", key).split('.')
+            if len(key) ==1:
+                key.append(0)
+            print(key[0],key[1])
+            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.PE)
+            print(tagValue)
             valueList.append(tagValue)
-        else:  
-            tagValue = ReadMerker(PLC1, int(key), 0, value)
+        elif 'Q' in key:
+            key = re.sub("[^\d\.]", "", key).split('.')
+            if len(key) ==1:
+                key.append(0)
+            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.PA)
+            valueList.append(tagValue)
+        elif 'M' in key:
+            key = re.sub("[^\d\.]", "", key).split('.')
+            if len(key) ==1:
+                key.append(0)
+            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.MK)
             valueList.append(tagValue)
                 
     return valueList
+
 
 # # def WriteMerker(PLC, byte, bit, datatype):
 # #     # GET VALUE FROM INPUT IN EXCEL VALUE CELL
@@ -93,16 +113,14 @@ def write_toExcel(PLC):
     
 if __name__ == "__main__":
 
-    excelWorkbook = load_workbook('PLCTags.xlsx')
+    excelWorkbook = load_workbook('PilotTags.xlsx')
     uiSheet = excelWorkbook.active
     address_dataType = getTagInfo()
     
     PLC1 = snap7.client.Client()
     try:
-        PLC1.connect('192.168.0.1',0,1) # IP, RACK #, SLOT #
+        PLC1.connect('192.168.10.1',0,1) # IP, RACK #, SLOT #
         print("CONNECTION STATUS: \n" + "PLC1: " + str(PLC1.get_connected())) # DISPLAYS IF CONNECTION TO PLC IS VALID
     except:
         print("CONNECTION STATUS: \n" "PLC1: " + str(PLC1.get_connected()))
-    write_toExcel(PLC1)
-
-    
+    values = ReadTags(PLC1)
