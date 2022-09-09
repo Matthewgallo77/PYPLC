@@ -38,11 +38,12 @@ def dataList(columnInput, infoList):
         return infoList
 
 def ReadArea(PLC, byte, bit, datatype, area): # M, MB, MW, MD
-    
+    byteArray = PLC.read_area(area, byte, bit, datatype)
     # print(byteArray)
     if datatype == snap7.types.S7WLBit:
         return get_bool(byteArray, byte, bit)
     elif datatype == snap7.types.S7WLInt or datatype == snap7.types.S7WLWord:
+        print("i am an int")
         return get_int(byteArray, byte)
     elif datatype == snap7.types.S7WLReal:
         return get_real(byteArray, byte)
@@ -58,7 +59,6 @@ def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
         
         if 'I' in key:
             key = re.sub("[^\d\.]", "", key).split('.')
-            byteArray = PLC.ab_read(area, byte, bit, datatype)
             if len(key) ==1:
                 key.append(0)
             print(key[0],key[1])
@@ -66,14 +66,12 @@ def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
             print(tagValue)
             valueList.append(tagValue)
         elif 'Q' in key:
-            byteArray = PLC.eb_read(area, byte, bit, datatype)
             key = re.sub("[^\d\.]", "", key).split('.')
             if len(key) ==1:
                 key.append(0)
             tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.PA)
             valueList.append(tagValue)
         elif 'M' in key:
-            byteArray = PLC.mb_read(area, byte, bit, datatype)
             key = re.sub("[^\d\.]", "", key).split('.')
             if len(key) ==1:
                 key.append(0)
@@ -126,3 +124,4 @@ if __name__ == "__main__":
     except:
         print("CONNECTION STATUS: \n" "PLC1: " + str(PLC1.get_connected()))
     values = ReadTags(PLC1)
+
