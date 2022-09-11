@@ -1,4 +1,5 @@
 
+
 import openpyxl
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
@@ -23,11 +24,7 @@ def getTagInfo():
     nameList, datatypeList, addressList  = dataList(NAMES, nameList), dataList(DATATYPES, datatypeList), dataList(ADDRESSES, addressList)
 
     datatypeList = [snap7.types.S7WLBit if dataType =='Bool' else snap7.types.S7WLWord if dataType == 'Word' else snap7.types.S7WLInt if dataType == 'Int' else snap7.types.S7WLReal for dataType in datatypeList] # 1 is Bool, 5 is Int, 8 is Real
-
-    # for value in addressList:
-        # addressList=list(map(lambda x: x.replace(value,re.sub("[^\d\.]", "", value)), addressList))
     address_dataType = {addressList[i]: datatypeList[i] for i in range(len(addressList))} # CONTAINS {ADDRESS: DATATYPE}
-    # print(address_dataType)
     return address_dataType
 
 def dataList(columnInput, infoList):
@@ -37,13 +34,11 @@ def dataList(columnInput, infoList):
                 infoList.append(INFO.value)
         return infoList
 
-def ReadArea(PLC, byte, bit, datatype, area): # M, MB, MW, MD
-    byteArray = PLC.read_area(area, byte, bit, datatype)
+def ReadData(PLC, byte, bit, datatype, byteArray): # M, MB, MW, MD
     # print(byteArray)
     if datatype == snap7.types.S7WLBit:
         return get_bool(byteArray, byte, bit)
     elif datatype == snap7.types.S7WLInt or datatype == snap7.types.S7WLWord:
-        print("i am an int")
         return get_int(byteArray, byte)
     elif datatype == snap7.types.S7WLReal:
         return get_real(byteArray, byte)
@@ -53,48 +48,47 @@ def ReadArea(PLC, byte, bit, datatype, area): # M, MB, MW, MD
 
 def ReadTags(PLC): # READS ALL TAGS AND RETRIEVES THERE VALUE
     valueList = []
-    tagValue = None
     addressList = []
-    for key, value in address_dataType.items():
-        
-        if 'I' in key:
-            key = re.sub("[^\d\.]", "", key).split('.')
-            if len(key) ==1:
-                key.append(0)
-            print(key[0],key[1])
-            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.PE)
-            print(tagValue)
-            valueList.append(tagValue)
+    
+    for key, value in address_dataType.items(): # ADDRESS : DATATYPE
+        if 'M' in key: # MERKER  
+            valueList.append(readMerker(key, value))
+        elif 'I' in key: # INPUT
+            valueList.append(readInput(key, value))
         elif 'Q' in key:
-            key = re.sub("[^\d\.]", "", key).split('.')
-            if len(key) ==1:
-                key.append(0)
-            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.PA)
-            valueList.append(tagValue)
-        elif 'M' in key:
-            key = re.sub("[^\d\.]", "", key).split('.')
-            if len(key) ==1:
-                key.append(0)
-            tagValue = ReadArea(PLC1, int(key[0]), int(key[1]), value, snap7.types.Areas.MK)
-            valueList.append(tagValue)
-                
+            valueList.append(readOutput(key, value))
+
+
     return valueList
 
+def readMerker(offset, data_type):
+    offset = re.sub("[^\d\.]", "", offset).split('.')
+    if len(offset) == 1:
+        offset.append(0)
+    offset = [int(index) for index in offset]
+    byte_array = PLC1.mb_read(offset[0], data_type)
 
-# # def WriteMerker(PLC, byte, bit, datatype):
-# #     # GET VALUE FROM INPUT IN EXCEL VALUE CELL
-# #     # HAVE SCRIPT RUN WHEN VALUE CELL CHANGES... here is article:
-# #     # https://docs.microsoft.com/en-us/office/troubleshoot/excel/run-macro-cells-change
-# #     byteArray = PLC.read_area(snap7.types.Areas.MK, 0, byte, datatype)
-#     if datatype == snap7.types.S7WLBit:
-#         return get_bool(byteArray, byte, bit, value)
-#     elif datatype == snap7.types.S7WLInt:
-#         return get_int(byteArray, byte, value)
-#     elif datatype == snap7.types.S7WLWord:
-#         return get_real(byteArray, byte, value)
-#     else:
-#         return 'ERROR: Data type has not been anticipated'
-# # 
+    return ReadData(PLC1, offset[0], offset[1], data_type , byte_array)
+    
+
+def readInput(offset, data_type):
+    offset = re.sub("[^\d\.]", "", offset).split('.')
+    
+    if len(offset) == 1:
+        offset.append(0)
+    offset = [int(index) for index in offset]
+    byte_array = PLC1.eb_read(offset[0], data_type)
+
+    return ReadData(PLC1, offset[0], offset[1], data_type, byte_array)
+
+def readOutput(offset, data_type):
+    offset = re.sub("[^\d\.]", "", offset).split('.')
+    if len(offset) == 1:
+        offset.append(0)
+    offset = [int(index) for index in offset]
+    byte_array = PLC1.ab_read(offset[0], data_type)
+    
+    return ReadData(PLC1, offset[0], offset[1], data_type, byte_array)
 
 def write_toExcel(PLC):
     
