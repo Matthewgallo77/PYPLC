@@ -38,7 +38,6 @@ def adjustXL():
                 ws.autofit(axis='columns')
 
             sht.range('E1').column_width = 15
-            wb.save(path)
 
 def getTagInfo():
 
@@ -81,12 +80,7 @@ def readInput(offset, data_type):
 def ReadData(byte, bit, datatype, byteArray): # M, MB, MW, MD
     if datatype[0] == 'Real':
         return get_real(byteArray, 0)
-    elif datatype[0] == 'Bool':
-        reading = struct.unpack('>f', byteArray)
-        if reading[0] != 0:
-            return True
-        else: 
-            return False
+    # elif datatype[0] == 'Bool':
         # return get_bool(byteArray, byte, bit)
     elif datatype[0] == 'Int':
         return get_int(byteArray, 0)
@@ -110,11 +104,32 @@ def write_toExcel():
     
     if (PLC.get_cpu_state() != 'S7CpuStatusRun'):
         sheet.range('F1').value = 'PLC Connection: False'
-  
+
+
+
+def getIP(): # GETS PARAMETERS FROM TEXT FILE
+    with open('parameters.txt', 'r') as file:
+    # Read each line of the file
+        IP, path = '', ''
+        lineNum = 0 
+        for line in file:
+            if lineNum == 0:
+                key, IP = line.split('=')
+                IP = IP.strip()
+                
+            if lineNum == 1:
+                key, path = line.split('=')
+                path = path.strip()
+            
+            lineNum+=1
+ 
+    return [IP, path]
+    
 if __name__ == "__main__":
     PLC = snap7.client.Client()
-    IP = '192.168.10.100'
-    path = 'book1.xlsx' # FILE NAME
+    parameters=getIP()
+    IP = parameters[0]
+    path = parameters[1]
     offsets = [['Bool',4],['Int',2],['Real',4]]
     connectionStatus(PLC, IP) # CHECKS CONNECTION
     adjustXL() # ADJUSTS XL FOR READABILITY
@@ -125,3 +140,4 @@ if __name__ == "__main__":
     write_toExcel()
    
     
+
