@@ -1,4 +1,3 @@
-
 import openpyxl
 import struct
 from openpyxl import load_workbook
@@ -16,9 +15,7 @@ from win32com.client import Dispatch # pip install pywin32
 
 # CREATE A COPY OF TAG TABLE WITH DESIRED TAGS
 
-
 offsets = [['Bool',4],['Int',2],['Real',4]]
-
 
 # while True:
 #         try:
@@ -78,7 +75,11 @@ def ReadTags(): # READS ALL TAGS AND RETRIEVES THERE VALUE
 
     for key, value in address_dataType.items(): # ADDRESS : DATATYPE
         if 'I' in key: # MERKER 
-            valueList.append(readInput(key, value)) # OFFSET, DATATYPE
+            valueList.append(readInput(key, value)) # PROCESS INPUTS - OFFSET, DATATYPE
+        elif 'M' in key:
+            valueList.append(readMerker(key,value)) # PROCESS MERKERS - OFFSET, DATATYPE
+        elif 'Q' in key:
+            valueList.append(readOutput(key,value)) # PROCESS OUTPUT - OFFSET, DATATYPE
         else:
             print("Data type not anticipated")
 
@@ -90,6 +91,22 @@ def readInput(offset, data_type):
         offset.append(0)
     offset = [int(index) for index in offset]
     byteArray = PLC.read_area(snap7.types.Areas.PE, 0, offset[0], data_type[1])
+    return ReadData(offset[0], offset[1], data_type, byteArray)
+
+def readMerker(offset, data_type):
+    offset = re.sub("[^\d\.]", "", offset).split('.')
+    if len(offset) == 1:
+        offset.append(0)
+    offset = [int(index) for index in offset]
+    byteArray = PLC.read_area(snap7.types.Areas.MK, 0, offset[0], data_type[1])
+    return ReadData(offset[0], offset[1], data_type, byteArray)
+
+def readOutput(offset, data_type):
+    offset = re.sub("[^\d\.]", "", offset).split('.')
+    if len(offset) == 1:
+        offset.append(0)
+    offset = [int(index) for index in offset]
+    byteArray = PLC.read_area(snap7.types.Areas.PA, 0, offset[0], data_type[1])
     return ReadData(offset[0], offset[1], data_type, byteArray)
 
 def ReadData(byte, bit, datatype, byteArray): # M, MB, MW, MD
@@ -140,5 +157,3 @@ if __name__ == "__main__":
     address_dataType = getTagInfo()
     valueList = ReadTags()
     write_toExcel()
-   
-    
