@@ -16,17 +16,32 @@ from win32com.client import Dispatch # pip install pywin32
 
 # CREATE A COPY OF TAG TABLE WITH DESIRED TAGS
 
-def connectionStatus(PLC,IP):
-    PLC.connect(IP,0,1) # IP, RACK #, SLOT #
-    try:
-        if PLC.get_cpu_state() != 'S7CpuStatusRun':
-            print("CONNECTION STATUS: \nPLC: False") # DISPLAYS IF CONNECTION TO PLC IS VALID
-    except:
-        print("CONNECTION STATUS: \nPLC: True")
+
+offsets = [['Bool',4],['Int',2],['Real',4]]
+
+
+# while True:
+#         try:
+#             path = input("Enter the Path of the excel file: ")
+#             wb = xw.Book(path, read_only=True)
+#             return [wb, path]
+#         except snap7.snap7exceptions:
+#             print("Path was entered incorrectly. Please check if xlsx file is in same folder as EXE file or ENTER AGAIN: ")
+
+def connectPLC():
+
+    while True:
+        try:
+            IP = input("Enter the IP address of the PLC: ")
+            PLC.connect(IP,0,1) # IP, RACK #, SLOT #
+            print("CONNECTION STATUS: \nPLC: True") # DISPLAYS IF CONNECTION TO PLC IS VALID
+            return IP
+        except snap7.error:
+            print("CONNECTION STATUS: \nPLC: False\nCheck PLC connection or re-enter IP.")
 
 def adjustXL():
     # ORGANIZES EXCEL SHEET FOR READABILITY
-    wb = xw.Book(path, read_only=True)
+    
     sht = wb.sheets[0]
     if sht.range('G1').value is not None:
         column_range = sht.range('E:J')
@@ -89,7 +104,6 @@ def ReadData(byte, bit, datatype, byteArray): # M, MB, MW, MD
 
 def write_toExcel():
     
-    wb = xw.Book(path, read_only=True)
     sheet = xw.sheets[0]
   
     rowCount=2
@@ -105,39 +119,26 @@ def write_toExcel():
     if (PLC.get_cpu_state() != 'S7CpuStatusRun'):
         sheet.range('F1').value = 'PLC Connection: False'
 
-
-
-def getIP(): # GETS PARAMETERS FROM TEXT FILE
-    with open('parameters.txt', 'r') as file:
-    # Read each line of the file
-        IP, path = '', ''
-        lineNum = 0 
-        for line in file:
-            if lineNum == 0:
-                key, IP = line.split('=')
-                IP = IP.strip()
-                
-            if lineNum == 1:
-                key, path = line.split('=')
-                path = path.strip()
-            
-            lineNum+=1
- 
-    return [IP, path]
+def setPath():
+    while True:
+        try:
+            path = input("Enter the Path of the excel file: ")
+            wb = xw.Book(path, read_only=True)
+            return [wb, path]
+        except FileNotFoundError:
+            print("Path was entered incorrectly. Please check if xlsx file is in same folder as EXE file or ENTER AGAIN: ")
+      
     
 if __name__ == "__main__":
     PLC = snap7.client.Client()
-    parameters=getIP()
-    IP = parameters[0]
-    path = parameters[1]
-    offsets = [['Bool',4],['Int',2],['Real',4]]
-    connectionStatus(PLC, IP) # CHECKS CONNECTION
+    IP = connectPLC()
+    excelSheetData = setPath()
+    wb, path = excelSheetData[0], excelSheetData[1]
+    excelWorkbook = load_workbook(path)
     adjustXL() # ADJUSTS XL FOR READABILITY
-    excelWorkbook = load_workbook('book1.xlsx') # MAKE SURE EXCEL SHEET IS OPEN IN READ ONLY MODE
     uiSheet = excelWorkbook.active 
     address_dataType = getTagInfo()
     valueList = ReadTags()
     write_toExcel()
    
     
-
